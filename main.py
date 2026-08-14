@@ -1,17 +1,37 @@
-from telegram import Update
-from telegram.ext import Application, MessageHandler, filters
+from flask import Flask, request
+from telegram import Update, Bot
+from telegram.ext import Application, MessageHandler, filters, ContextTypes
+import os
 
-async def handle_photo(update: Update, context):
-    # Скачиваем фото
-    photo_file = await update.message.photo[-1].get_file()
-    file_path = f"passport_{update.effective_user.id}.jpg"
-    await photo_file.download_to_drive(file_path)
+app = Flask(__name__)
+
+# Токен берем из переменных окружения (не храним в коде!)
+TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+bot = Bot(token=TOKEN)
+
+# Ваша логика обработки (здесь вы вставляете OCR)
+async def handle_docs(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Ваш договор генерируется... (тут ваша магия)")
+
+# Эндпоинт для вебхука
+@app.route(f'/{TOKEN}', methods=['POST'])
+def webhook():
+    update = Update.de_json(request.get_json(), bot)
+    # Запускаем асинхронную функцию
+    application.process_update(update)
+    return 'ok', 200
+
+@app.route('/')
+def index():
+    return "Бот жив!", 200
+
+if __name__ == '__main__':
+    # Создаем приложение телеграма
+    application = Application.builder().token(TOKEN).build()
+    application.add_handler(MessageHandler(filters.PHOTO, handle_docs))
     
-    # Отправляем в OCR
-    text = extract_passport_data(file_path)
+    # Устанавливаем вебхук (один раз при старте)
+    bot.set_webhook(url=f'https://{os.environ.get("RENDER_EXTERNAL_HOSTNAME")}/{TOKEN}')
     
-    # Отдаем AI для заполнения шаблона
-    contract = fill_contract_with_ai(text)
-    
-    # Отправляем пользователю .docx или .pdf
-    await update.message.reply_document(document=open(contract, 'rb'))
+    # Запускаем Flask
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000)))
