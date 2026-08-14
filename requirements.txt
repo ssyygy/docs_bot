@@ -1,0 +1,7 @@
+python-telegram-bot==20.3
+Flask==2.3.2
+gunicorn==21.2.0
+paddlepaddle==2.5.2
+paddleocr==2.7.0.3
+opencv-python-headless
+docxtpl==0.16.5
