@@ -1,15 +1,26 @@
 import asyncio
 import os
 
-from flask import Flask, request
+from flask import Flask, request as flask_request
 from telegram import Update, Bot
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
+from telegram.request import HTTPXRequest
 
 app = Flask(__name__)
 
 # Токен берем из переменных окружения (не храним в коде!)
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-bot = Bot(token=TOKEN)
+
+# Увеличенные таймауты, чтобы избежать httpx.ConnectTimeout
+# на не самых быстрых соединениях Render -> Telegram API
+telegram_request = HTTPXRequest(
+    connect_timeout=20.0,
+    read_timeout=20.0,
+    write_timeout=20.0,
+    pool_timeout=20.0,
+)
+
+bot = Bot(token=TOKEN, request=telegram_request)
 
 
 # Ваша логика обработки (здесь вы вставляете OCR)
@@ -20,7 +31,12 @@ async def handle_docs(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Создаем приложение телеграма на уровне модуля,
 # чтобы это выполнялось и при запуске через gunicorn (main:app),
 # а не только при прямом запуске файла.
-application = Application.builder().token(TOKEN).build()
+application = (
+    Application.builder()
+    .token(TOKEN)
+    .request(telegram_request)
+    .build()
+)
 application.add_handler(MessageHandler(filters.PHOTO, handle_docs))
 
 # Отдельный event loop для обработки апдейтов внутри синхронного Flask
@@ -32,7 +48,7 @@ loop.run_until_complete(application.initialize())
 # Эндпоинт для вебхука
 @app.route(f'/{TOKEN}', methods=['POST'])
 def webhook():
-    update = Update.de_json(request.get_json(), bot)
+    update = Update.de_json(flask_request.get_json(), bot)
     loop.run_until_complete(application.process_update(update))
     return 'ok', 200
 
