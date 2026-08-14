@@ -14,10 +14,10 @@ TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 # Увеличенные таймауты, чтобы избежать httpx.ConnectTimeout
 # на не самых быстрых соединениях Render -> Telegram API
 telegram_request = HTTPXRequest(
-    connect_timeout=20.0,
-    read_timeout=20.0,
-    write_timeout=20.0,
-    pool_timeout=20.0,
+    connect_timeout=50.0,
+    read_timeout=50.0,
+    write_timeout=50.0,
+    pool_timeout=50.0,
 )
 
 bot = Bot(token=TOKEN, request=telegram_request)
